@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: er-automobiles
+  namespace: default
+  labels:
+    app: er-automobiles
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: er-automobiles
+  template:
+    metadata:
+      labels:
+        app: er-automobiles
+    spec:
+      containers:
+        - image: registry.gitlab.galvanize.com/cohorts/ent/sf/ase-tier3-06-24-2024/student-work/eli-ruter/autos-api:manual
+          name: er-automobiles
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: er-automobiles-config
+                  key: DB_HOST
+#            - name: CLUSTER_NAME
+#              valueFrom:
+#                configMapKeyRef:
+#                  name: er-automobiles-config
+#                  key: cluster_name
+#            - name: DEFAULT_REGION
+#              valueFrom:
+#                configMapKeyRef:
+#                  name: er-automobiles-config
+#                  key: default_region
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: er-automobiles-config
+                  key: DB_PORT
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: eli-automobiles-secret
+                  key: database_user
+#            - name: AWS_ACCESS_KEY_ID
+#              valueFrom:
+#                secretKeyRef:
+#                  name: eli-automobiles-secret
+#                  key: aws_access_key_id
+#            - name: AWS_SECRET_ACCESS_KEY
+#              valueFrom:
+#                secretKeyRef:
+#                  name: eli-automobiles-secret
+#                  key: aws_secret_access_key
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: er-automobiles-config
+                  key: DB_NAME
+#            - name: BASE_AWS_EKS_IMAGE
+#              valueFrom:
+#                configMapKeyRef:
+#                  name: er-automobiles-config
+#                  key: aws_eks_image
+            - name: DB_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: eli-automobiles-secret
+                  key: database_password
+      imagePullSecrets:
+        - name: er-simple-autos-token

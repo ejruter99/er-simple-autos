@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: er-automobiles-config
+  namespace: default
+data:
+  DB_HOST: "postgres.galvanizelabs.net"
+  DB_PORT: "5432"
+  DB_NAME: "elijah_ruter_db"
+#  default_region: us-west-2
+#  cluster_name: sf-ase-t3-june-2024
+#  aws_eks_image: http://registry.gitlab.galvanize.com/galvanize-it/curricula/ent/legacy/classroom-resources/utilities/base-aws-eks-image:latest

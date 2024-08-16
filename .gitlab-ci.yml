@@ -1,0 +1,101 @@
+image: eclipse-temurin:17-alpine
+
+stages:
+  - build
+  - test
+  - docker
+  - deploy
+
+before_script:
+  - GRADLE_USER_HOME="$(pwd)/.gradle"
+  - export GRADLE_USER_HOME
+
+build-job:
+  image: eclipse-temurin:17-alpine
+  stage: build
+  script:
+    - ./gradlew assemble
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: push
+    paths:
+      - build/**
+      - .gradle
+  artifacts:
+    untracked: false
+    when: on_success
+    access: all
+    expire_in: 30 days
+    paths:
+      - build/libs/*.jar
+
+test-job:
+  image: eclipse-temurin:17-alpine
+  stage: test
+  script:
+    ./gradlew test
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: pull
+    paths:
+      - build/**
+      - .gradle
+  artifacts:
+    untracked: false
+    when: on_failure
+    access: all
+    expire_in: 30 days
+    paths:
+      - build/test-results/test/TEST*.xml
+
+docker:
+  stage: docker
+  needs:
+    - build-job
+    - test-job
+  image:
+    name: gcr.io/kaniko-project/executor:v1.15.0-debug
+    entrypoint: [ "" ]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:$CI_PIPELINE_IID"
+      --destination "${CI_REGISTRY_IMAGE}:latest"
+      --cleanup
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: pull
+    paths:
+      - build/**
+      - .gradle
+
+deploy:
+  stage: deploy
+  image: $BASE_AWS_EKS_IMAGE
+  only:
+    refs:
+      - main
+      - master
+  when: manual
+  before_script:
+    - export IMAGE="$CI_REGISTRY_IMAGE":"$CI_PIPELINE_IID"
+    - aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
+    - aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
+    - aws configure set region $AWS_DEFAULT_REGION
+    - aws configure set output json
+    - aws eks update-kubeconfig --name "$CLUSTER_NAME"
+    - aws sts get-caller-identity
+  script:
+    - kubectl apply -f k8s-config/secret.yaml
+    - kubectl apply -f k8s-config/configmap.yaml
+    - kubectl apply -f k8s-config/demo-service.yaml
+    - envsubst < k8s-config/demo-deployment.yaml | kubectl apply -f -
+
+#deploy:
+#  stage: deploy
+#  script:
+#    - echo "Deploying to Kubernetes..."
+#    - kubectl apply -f k8s/
+#  only:
+#    - main
